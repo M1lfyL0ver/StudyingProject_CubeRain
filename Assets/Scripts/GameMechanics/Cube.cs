@@ -12,6 +12,7 @@ public class Cube : MonoBehaviour
     [SerializeField] private Color _collisionColor;
 
     private MeshRenderer _renderer;
+    private Rigidbody _rigidbody;
     private int _lifeTimeAfterCollision;
     private bool _isCollided;
 
@@ -20,8 +21,13 @@ public class Cube : MonoBehaviour
     private void OnEnable()
     {
         _renderer = GetComponent<MeshRenderer>();
+        _rigidbody = GetComponent<Rigidbody>();
         _lifeTimeAfterCollision = Random.Range(_minLifeTimeAfterCollision, _maxLifeTimeAfterCollision);
+
+        transform.rotation = Quaternion.Euler(0, 0, 0);
         _renderer.material.color = _activeColor;
+        _rigidbody.linearVelocity = Vector3.zero;
+        _rigidbody.angularVelocity = Vector3.zero;
         _isCollided = false;
     }
 
