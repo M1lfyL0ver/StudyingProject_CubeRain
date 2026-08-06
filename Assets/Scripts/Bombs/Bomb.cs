@@ -1,34 +1,46 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Random = UnityEngine.Random;
 
-[RequireComponent(typeof(Rigidbody), typeof(MeshRenderer), typeof(SphereCollider))]
-[RequireComponent(typeof(BombExplosion))]
-public sealed class Bomb : PooledObject
+[RequireComponent(typeof(Rigidbody), typeof(MeshRenderer))]
+[RequireComponent(typeof(SphereCollider), typeof(BombExplosion))]
+public sealed class Bomb : MonoBehaviour, IPoolable<Bomb>
 {
-    private static readonly int SurfaceProperty = Shader.PropertyToID("_Surface");
-    private static readonly int ModeProperty = Shader.PropertyToID("_Mode");
-    private static readonly int SourceBlendProperty = Shader.PropertyToID("_SrcBlend");
-    private static readonly int DestinationBlendProperty = Shader.PropertyToID("_DstBlend");
-    private static readonly int WriteDepthProperty = Shader.PropertyToID("_ZWrite");
+    private static readonly int SurfaceProperty =
+        Shader.PropertyToID("_Surface");
+
+    private static readonly int ModeProperty =
+        Shader.PropertyToID("_Mode");
+
+    private static readonly int SourceBlendProperty =
+        Shader.PropertyToID("_SrcBlend");
+
+    private static readonly int DestinationBlendProperty =
+        Shader.PropertyToID("_DstBlend");
+
+    private static readonly int WriteDepthProperty =
+        Shader.PropertyToID("_ZWrite");
 
     [SerializeField, Min(0f)] private float _minExplosionDelay = 2f;
     [SerializeField, Min(0f)] private float _maxExplosionDelay = 5f;
     [SerializeField] private Color _bombColor = Color.black;
 
-    private MeshRenderer _meshRenderer;
     private Material _material;
     private Rigidbody _rigidbody;
     private BombExplosion _bombExplosion;
     private Coroutine _explosionCoroutine;
 
+    public event Action<Bomb> ReleaseRequested;
+
     private void Awake()
     {
-        _meshRenderer = GetComponent<MeshRenderer>();
+        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
+
         _rigidbody = GetComponent<Rigidbody>();
         _bombExplosion = GetComponent<BombExplosion>();
-        _material = _meshRenderer.material;
+        _material = meshRenderer.material;
     }
 
     private void OnDestroy()
@@ -38,10 +50,12 @@ public sealed class Bomb : PooledObject
 
     private void OnValidate()
     {
-        _maxExplosionDelay = Mathf.Max(_minExplosionDelay, _maxExplosionDelay);
+        _maxExplosionDelay = Mathf.Max(
+            _minExplosionDelay,
+            _maxExplosionDelay);
     }
 
-    public override void PrepareForSpawn()
+    public void PrepareForSpawn()
     {
         StopExplosionCoroutine();
 
@@ -51,11 +65,15 @@ public sealed class Bomb : PooledObject
         SetOpaqueRenderMode();
         SetAlpha(1f);
 
-        float explosionDelay = Random.Range(_minExplosionDelay, _maxExplosionDelay);
-        _explosionCoroutine = StartCoroutine(FadeAndExplode(explosionDelay));
+        float explosionDelay = Random.Range(
+            _minExplosionDelay,
+            _maxExplosionDelay);
+
+        _explosionCoroutine = StartCoroutine(
+            FadeAndExplode(explosionDelay));
     }
 
-    public override void PrepareForRelease()
+    public void PrepareForRelease()
     {
         StopExplosionCoroutine();
     }
@@ -69,7 +87,10 @@ public sealed class Bomb : PooledObject
         while (elapsedTime < duration)
         {
             elapsedTime += Time.deltaTime;
-            float alpha = 1f - Mathf.Clamp01(elapsedTime / duration);
+
+            float alpha = 1f - Mathf.Clamp01(
+                elapsedTime / duration);
+
             SetAlpha(alpha);
 
             yield return null;
@@ -77,13 +98,15 @@ public sealed class Bomb : PooledObject
 
         _bombExplosion.Explode();
         _explosionCoroutine = null;
-        RequestRelease();
+
+        ReleaseRequested?.Invoke(this);
     }
 
     private void SetAlpha(float alpha)
     {
         Color color = _bombColor;
         color.a = alpha;
+
         _material.color = color;
     }
 
@@ -107,8 +130,14 @@ public sealed class Bomb : PooledObject
     {
         SetMaterialFloat(SurfaceProperty, 1f);
         SetMaterialFloat(ModeProperty, 2f);
-        SetMaterialFloat(SourceBlendProperty, (float)BlendMode.SrcAlpha);
-        SetMaterialFloat(DestinationBlendProperty, (float)BlendMode.OneMinusSrcAlpha);
+        SetMaterialFloat(
+            SourceBlendProperty,
+            (float)BlendMode.SrcAlpha);
+
+        SetMaterialFloat(
+            DestinationBlendProperty,
+            (float)BlendMode.OneMinusSrcAlpha);
+
         SetMaterialFloat(WriteDepthProperty, 0f);
 
         _material.SetOverrideTag("RenderType", "Transparent");

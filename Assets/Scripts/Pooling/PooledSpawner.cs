@@ -1,7 +1,8 @@
 using UnityEngine;
 using UnityEngine.Pool;
 
-public abstract class PooledSpawner<T> : SpawnerStatisticsSource where T : PooledObject
+public abstract class PooledSpawner<T> : SpawnerStatisticsSource
+    where T : MonoBehaviour, IPoolable<T>
 {
     [SerializeField] private T _prefab;
     [SerializeField, Min(1)] private int _defaultCapacity = 10;
@@ -12,9 +13,11 @@ public abstract class PooledSpawner<T> : SpawnerStatisticsSource where T : Poole
 
     public override int SpawnedObjectsCount => _spawnedObjectsCount;
 
-    public override int CreatedObjectsCount => _objectPool == null ? 0 : _objectPool.CountAll;
+    public override int CreatedObjectsCount =>
+        _objectPool == null ? 0 : _objectPool.CountAll;
 
-    public override int ActiveObjectsCount => _objectPool == null ? 0 : _objectPool.CountActive;
+    public override int ActiveObjectsCount =>
+        _objectPool == null ? 0 : _objectPool.CountActive;
 
     protected virtual void Awake()
     {
@@ -58,14 +61,12 @@ public abstract class PooledSpawner<T> : SpawnerStatisticsSource where T : Poole
         return pooledObject;
     }
 
-    private void ReleaseObject(PooledObject pooledObject)
+    private void ReleaseObject(T pooledObject)
     {
-        T typedObject = (T)pooledObject;
+        pooledObject.PrepareForRelease();
+        _objectPool.Release(pooledObject);
 
-        typedObject.PrepareForRelease();
-        _objectPool.Release(typedObject);
-        AfterObjectReleased(typedObject);
-
+        AfterObjectReleased(pooledObject);
         NotifyStatisticsChanged();
     }
 
